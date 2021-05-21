@@ -63,20 +63,22 @@ class Segmentator(nn.Module):
         """Train and validates model, if valid_loader is None then won't perform validation.
         """
         base_optimizer = torch.optim.SGD
-        optimizer = SAM(self.parameters(), base_optimizer, lr=lr, momentum=0.9)
+        optimizer = base_optimizer(self.parameters(), lr=lr, momentum=0.9)
         history = {"train_dice": [], "valid_dice": [], "train_iou": [], "valid_iou": []}
         for epoch_idx in range(epochs):
             for image, true_mask in tqdm.tqdm(train_loader):
                 out_mask = self(image)
                 loss = dice_loss(out_mask, true_mask)
-                loss.backward()
-                optimizer.first_step(zero_grad=True)
-                dice_loss(out_mask, true_mask).backward()
-                optimizer.second_step(zero_grad=True)
+                loss.backward(retain_graph=True)
+                optimizer.step()
                 history["train_dice"].append(loss)
                 iou_m = iou(out_mask, true_mask)
                 history["train_iou"].append(iou_m)
-                if summary: summary.add_scalars("train", {"dice": loss, "iou": iou_m})
+                if summary: 
+                    summary.add_scalars("train", {"dice": loss, "iou": iou_m})
+            if summary: 
+                summary.add_image("out_mask", out_mask[0], step=epoch_idx)
+                summary.add_image("true_mask", true_mask[0], step=epoch_idx)
             if not valid_loader: continue
             with torch.no_grad():
                 for image, true_mask in tqdm.tqdm(valid_loader):
