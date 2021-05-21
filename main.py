@@ -12,7 +12,7 @@ is_cuda = torch.cuda.is_available()
 
 def load_ds(ds_dir, load_memory, batch_size=8):
     ds = data_loader.ObjectSegmentationDataset(ds_dir=ds_dir, annotation_path=os.path.join(ds_dir, "annotations.json"), load_memory=load_memory) if ds_dir else None
-    if ds: return data.DataLoader(ds, batch_size=batch_size, num_workers=8, pin_memory=is_cuda)
+    if ds: return data.DataLoader(ds, batch_size=batch_size, num_workers=9, pin_memory=is_cuda)
     return None
 
 if __name__ == "__main__":
@@ -33,6 +33,7 @@ if __name__ == "__main__":
     valid_loader = load_ds(args.valid_ds)
 
     net = model.Segmentator()
+    net.cuda()
     print("Loaded stuff.\n Starting program.")
     if option == "train":
         net.train(train_loader, valid_loader, epochs=10, lr=0.001, summary=summary)

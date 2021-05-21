@@ -79,7 +79,7 @@ class ObjectSegmentationDataset(data.Dataset):
         filename, regions = self.data_raw[index]
         image = load_image(os.path.join(self.ds_dir, filename))
         mask = create_mask(image, regions)
-        return image, mask
+        return image.cuda(), mask.cuda()
 
 if __name__ == "__main__":
     import time

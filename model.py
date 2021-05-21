@@ -3,6 +3,7 @@ from torch import tensor
 import torch.nn as nn
 import torch.utils.data as data
 import tqdm
+from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
 from sam import SAM
 from torch.autograd import Variable
@@ -19,6 +20,15 @@ def iou(out_mask, true_mask):
     denominator = torch.sum(predicted1) + torch.sum(true1) - nominator
     return nominator/denominator
 
+def put_masks(images, masks):
+    new_images = torch.zeros_like(images)
+    B, C, H, W = images.shape
+    for b in range(B):
+        new_images[b] = images[b]
+        mask = masks[b] > 0.5
+        new_images[b, mask] /= 2
+    return new_images
+    
 class Segmentator(nn.Module):
     def __init__(self) -> None:
         super(Segmentator, self).__init__()
@@ -76,9 +86,9 @@ class Segmentator(nn.Module):
                 history["train_iou"].append(iou_m)
                 if summary: 
                     summary.add_scalars("train", {"dice": loss, "iou": iou_m})
-            if summary: 
-                summary.add_image("out_mask", out_mask[0], global_step=epoch_idx)
-                summary.add_image("true_mask", true_mask[0], global_step=epoch_idx)
+                    visualized_masks = put_masks(image, out_mask)
+                    grid = make_grid(visualized_masks, nrow=3)
+                    summary.add_image("train_images", grid)
             if not valid_loader: continue
             with torch.no_grad():
                 for image, true_mask in tqdm.tqdm(valid_loader):
