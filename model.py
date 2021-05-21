@@ -77,8 +77,8 @@ class Segmentator(nn.Module):
                 if summary: 
                     summary.add_scalars("train", {"dice": loss, "iou": iou_m})
             if summary: 
-                summary.add_image("out_mask", out_mask[0], step=epoch_idx)
-                summary.add_image("true_mask", true_mask[0], step=epoch_idx)
+                summary.add_image("out_mask", out_mask[0], global_step=epoch_idx)
+                summary.add_image("true_mask", true_mask[0], global_step=epoch_idx)
             if not valid_loader: continue
             with torch.no_grad():
                 for image, true_mask in tqdm.tqdm(valid_loader):
