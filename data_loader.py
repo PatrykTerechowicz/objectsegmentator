@@ -8,6 +8,8 @@ from torchvision.transforms import ToTensor
 from torch.utils import data
 from typing import List, Tuple
 
+from tqdm.std import tqdm
+
 
 to_tensor = ToTensor()
 
@@ -82,13 +84,11 @@ class ObjectSegmentationDataset(data.Dataset):
 if __name__ == "__main__":
     import time
     T1 = time.time()
-    ds = ObjectClassificationDataset(r"C:\Users\user\Documents\dane\dane do segmentowania", r"C:\Users\user\Documents\dane\segmentacja_tla.json", load_memory=True)
+    ds = ObjectSegmentationDataset(r"C:\Users\user\Documents\dane\100Objects_train", r"C:\Users\user\Documents\dane\100Objects_train\annotations.json", load_memory=True)
+    dl = data.DataLoader(ds, batch_size=98)
     T2 = time.time()
     elapsed_time = T2-T1
     print(f"Elapsed Time {elapsed_time:.2f}")
-    import matplotlib.pyplot as plt
-    for i in range(1):
-        im, mask = ds[i]
-        im[:, mask==1] = 0.5*im[:, mask==1]
-        plt.imshow(im.permute([1, 2, 0]))
-        plt.show()
+    for i, m in tqdm(dl):
+        print(i.shape)
+        print(m.shape)

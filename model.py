@@ -62,12 +62,11 @@ class Segmentator(nn.Module):
     def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-4, summary: SummaryWriter=None):
         """Train and validates model, if valid_loader is None then won't perform validation.
         """
-        base_optimizer = torch.optim.SGD()
+        base_optimizer = torch.optim.SGD
         optimizer = SAM(self.parameters(), base_optimizer, lr=lr, momentum=0.9)
         history = {"train_dice": [], "valid_dice": [], "train_iou": [], "valid_iou": []}
         for epoch_idx in range(epochs):
-            for batch_idx, batch in tqdm.tqdm(train_loader):
-                image, true_mask = batch
+            for image, true_mask in tqdm.tqdm(train_loader):
                 out_mask = self(image)
                 loss = dice_loss(out_mask, true_mask)
                 loss.backward()
@@ -80,8 +79,7 @@ class Segmentator(nn.Module):
                 if summary: summary.add_scalars("train", {"dice": loss, "iou": iou_m})
             if not valid_loader: continue
             with torch.no_grad():
-                for batch_idx, batch in tqdm.tqdm(valid_loader):
-                    image, true_mask = batch
+                for image, true_mask in tqdm.tqdm(valid_loader):
                     out_mask = self(image)
                     loss = dice_loss(out_mask, true_mask)
                     history["valid_dice"].append(loss)

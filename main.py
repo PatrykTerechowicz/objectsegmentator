@@ -18,11 +18,11 @@ def load_ds(ds_dir, load_memory, batch_size=8):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("option", default="train", type=str, help="train/test/both")
-    parser.add_argument("-train_ds", default="./train", type=str)
-    parser.add_argument("-test_ds", default="./test", type=str)
-    parser.add_argument("-valid_ds", default="./valid", type=str)
+    parser.add_argument("-train_ds", default=None, type=str)
+    parser.add_argument("-test_ds", default=None, type=str)
+    parser.add_argument("-valid_ds", default=None, type=str)
     parser.add_argument("-logdir", default=None, type=str)
-    parser.args_argument("load_memory", action="store_true")
+    parser.add_argument("-load_memory", action="store_true")
     args = parser.parse_args()
 
     option = args.option
