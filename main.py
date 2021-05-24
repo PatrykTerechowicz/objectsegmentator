@@ -4,6 +4,7 @@ import data_loader
 import argparse
 import os
 import model
+import torch.nn.functional as F
 from datetime import date
 from functools import partial
 from torch.utils.tensorboard import SummaryWriter
@@ -43,9 +44,13 @@ if __name__ == "__main__":
     net = model.Segmentator()
     net = net.cuda()
 
-    loss_fn = torch.nn.BCELoss(reduce='none')
+    def loss_fn(outputs, targets, eps=1e-15, smooth=1., w=1/3):
+        bce = F.binary_cross_entropy(outputs, targets, reduction="mean")
+        intersection = (outputs * targets).sum()
+        union = outputs.sum() + targets.sum()
+        dice = (2. * intersection + smooth)/(union + eps + smooth)
+        return w * bce - (1 - w)*torch.log(dice)
     optim = torch.optim.Adam
-    summary.add_hparams({"lr": args.lr, "optimizer": str(type(optim)), "loss_fn": str(type(loss_fn)), "batch_size": args.batch_size}, {})
     print("Starting program.")
     if option == "train":
         net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary, loss_fn=loss_fn, optim=optim)
