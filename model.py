@@ -3,10 +3,13 @@ from torch import tensor
 import torch.nn as nn
 import torch.utils.data as data
 import tqdm
+import gc
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
 from sam import SAM
 from torch.autograd import Variable
+
+lossl1 = torch.nn.L1Loss()
 
 def dice_loss(out_mask, true_mask):
     numerator = 2 * torch.sum(out_mask * true_mask)
@@ -21,13 +24,11 @@ def iou(out_mask, true_mask):
     return nominator/denominator
 
 def put_masks(images, masks):
-    new_images = torch.zeros_like(images)
     B, C, H, W = images.shape
     for b in range(B):
-        new_images[b] = images[b]
         mask = masks[b] > 0.5
-        new_images[b, mask] /= 2
-    return new_images
+        images[b, :, mask] = 0
+    return images
     
 class Segmentator(nn.Module):
     def __init__(self) -> None:
@@ -49,52 +50,45 @@ class Segmentator(nn.Module):
     
     def forward(self, input: torch.Tensor):
         B, C, H, W = input.shape
-        f1 = self.conv1(input)
-        f1 = self.act(f1)
-        x = torch.cat([input, f1], dim=1)
-        f2 = self.conv2(x)
-        f2 = self.act(f2)
-        x = torch.cat([x, f2], dim=1)
-        f3 = self.conv3(x)
-        f3 = self.act(f3)
-        x = torch.cat([x, f3], dim=1)
-        f4 = self.conv4(x)
-        f4 = self.act(f4)
-        x = torch.cat([x, f4], dim=1)
+        x = torch.cat([input, self.act(self.conv1(input))], dim=1)
+        x = torch.cat([x, self.act(self.conv2(x))], dim=1)
+        x = torch.cat([x, self.act(self.conv3(x))], dim=1)
+        x = torch.cat([x, self.act(self.conv4(x))], dim=1)
         x = self.finconv1(x)
         x = self.act(x)
         output = self.finconv2(x)[:, 0, ...]
         output = self.out_act(output)
-        if self.debug:
-            return f1, f2, f3, f4, output
         return output
 
-    def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-4, summary: SummaryWriter=None):
+    def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-2, loss_fn=lossl1, summary: SummaryWriter=None):
         """Train and validates model, if valid_loader is None then won't perform validation.
         """
-        base_optimizer = torch.optim.SGD
-        optimizer = base_optimizer(self.parameters(), lr=lr, momentum=0.9)
-        history = {"train_dice": [], "valid_dice": [], "train_iou": [], "valid_iou": []}
+        optimizer = torch.optim.Adam(self.parameters(), lr=lr, momentum=0.9)
+        history = {"train_dice": [], "valid_dice": [], "train_iou": [], "valid_iou": [], "valid_loss": []}
         for epoch_idx in range(epochs):
+            i = 0
             for image, true_mask in tqdm.tqdm(train_loader):
+                i+=1
+                optimizer.zero_grad()
+                image = image.cuda()
+                true_mask = true_mask.cuda()
                 out_mask = self(image)
-                loss = dice_loss(out_mask, true_mask)
-                loss.backward(retain_graph=True)
+                loss = loss_fn(out_mask, true_mask)
+                loss.backward()
                 optimizer.step()
-                history["train_dice"].append(loss)
+                history["train_loss"].append(loss)
                 iou_m = iou(out_mask, true_mask)
                 history["train_iou"].append(iou_m)
                 if summary: 
                     summary.add_scalars("train", {"dice": loss, "iou": iou_m})
-                    visualized_masks = put_masks(image, out_mask)
-                    grid = make_grid(visualized_masks, nrow=3)
-                    summary.add_image("train_images", grid)
             if not valid_loader: continue
             with torch.no_grad():
                 for image, true_mask in tqdm.tqdm(valid_loader):
                     out_mask = self(image)
-                    loss = dice_loss(out_mask, true_mask)
-                    history["valid_dice"].append(loss)
+                    loss = loss_fn(out_mask, true_mask)
+                    history["valid_loss"].append(loss)
+                    dice = dice_loss(out_mask, true_mask)
+                    history["valid_dice"].append(dice)
                     iou_m = iou(out_mask, true_mask)
                     history["valid_iou"].append(iou_m)
-                    if summary: summary.add_scalars("valid", {"dice": loss, "iou": iou_m})
+                    if summary: summary.add_scalars("valid", {"dice": dice, "iou": iou_m, "loss": loss})

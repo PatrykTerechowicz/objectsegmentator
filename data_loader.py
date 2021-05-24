@@ -75,20 +75,21 @@ class ObjectSegmentationDataset(data.Dataset):
         return len(self.data_raw)
     
     def __getitem__(self, index):
-        if self.load_memory: return self.data[index]
+        if self.load_memory: 
+            image, mask = self.data[index]
+            return image, mask
         filename, regions = self.data_raw[index]
         image = load_image(os.path.join(self.ds_dir, filename))
         mask = create_mask(image, regions)
-        return image.cuda(), mask.cuda()
+        return image, mask
 
 if __name__ == "__main__":
     import time
     T1 = time.time()
-    ds = ObjectSegmentationDataset(r"C:\Users\user\Documents\dane\100Objects_train", r"C:\Users\user\Documents\dane\100Objects_train\annotations.json", load_memory=True)
-    dl = data.DataLoader(ds, batch_size=98)
+    ds = ObjectSegmentationDataset(r"E:\Datasets\100Objects_train", r"E:\Datasets\100Objects_train\annotations.json", load_memory=True)
+    dl = data.DataLoader(ds, batch_size=2, num_workers=0)
     T2 = time.time()
     elapsed_time = T2-T1
     print(f"Elapsed Time {elapsed_time:.2f}")
     for i, m in tqdm(dl):
-        print(i.shape)
-        print(m.shape)
+        print(i.device)
