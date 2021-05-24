@@ -4,6 +4,7 @@ import data_loader
 import argparse
 import os
 import model
+from datetime import date
 from functools import partial
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import Compose, ToTensor, Resize
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     option = args.option
-    summary = SummaryWriter(args.logdir) if args.logdir else None
+    summary = SummaryWriter(os.path.join(args.logdir, date.today().strftime("%Y-%m"))) if args.logdir else None
     load_ds = partial(load_ds, load_memory=args.load_memory)
     train_loader = load_ds(args.train_ds)
     test_loader = load_ds(args.test_ds)
