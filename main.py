@@ -7,7 +7,6 @@ import model
 import torch.nn.functional as F
 from datetime import date
 from functools import partial
-from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import Compose, ToTensor, Resize
 import sys
 is_cuda = torch.cuda.is_available()
@@ -25,7 +24,6 @@ if __name__ == "__main__":
     parser.add_argument("-train_ds", default=None, type=str)
     parser.add_argument("-test_ds", default=None, type=str)
     parser.add_argument("-valid_ds", default=None, type=str)
-    parser.add_argument("-logdir", default=None, type=str)
     parser.add_argument("-lr", default=0.001, type=float)
     parser.add_argument("-epochs", default=10, type=int)
     parser.add_argument("-batch_size", default=9, type=int)
@@ -33,7 +31,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     option = args.option
-    summary = SummaryWriter(os.path.join(args.logdir, date.today().strftime("%Y-%m"))) if args.logdir else None
     print(f"Loading data...")
     load_ds = partial(load_ds, load_memory=args.load_memory, batch_size=args.batch_size)
     train_loader = load_ds(args.train_ds)
@@ -53,10 +50,10 @@ if __name__ == "__main__":
     optim = torch.optim.Adam
     print("Starting program.")
     if option == "train":
-        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary, loss_fn=loss_fn, optim=optim)
+        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, loss_fn=loss_fn, optim=optim)
     elif option == "test":
         net.test(test_loader)
     elif option == "both":
-        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary)
+        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr)
         net.test(test_loader)
     
