@@ -69,6 +69,8 @@ class Segmentator(nn.Module):
             # report one image
             for data in train_loader:
                 image, true_mask = data
+                image = image.cuda()
+                true_mask = true_mask.cuda()
                 est_mask = self(image)
                 images_true = image*(true_mask.unsqueeze(1))
                 images_est = image*(est_mask.unsqueeze(1))
