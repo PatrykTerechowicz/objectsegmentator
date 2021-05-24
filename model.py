@@ -59,10 +59,10 @@ class Segmentator(nn.Module):
         output = self.out_act(output)
         return output
 
-    def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-2, loss_fn=lossl1, summary: SummaryWriter=None):
+    def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-2, loss_fn=lossl1, summary: SummaryWriter=None, optim:torch.optim.Optimizer=torch.optim.Adam):
         """Train and validates model, if valid_loader is None then won't perform validation.
         """
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr, momentum=0.9)
+        optimizer = optim(self.parameters(), lr=lr, momentum=0.9)
         s = f"optimizer: {type(optimizer)}\nloss: {type(loss_fn)}\n"
         summary.add_text("desc", s)
         for epoch_idx in range(epochs):
@@ -70,8 +70,8 @@ class Segmentator(nn.Module):
             for data in train_loader:
                 image, true_mask = data
                 est_mask = self(image)
-                images_true = image*true_mask
-                images_est = image*est_mask
+                images_true = image*(true_mask.unsqueeze(1))
+                images_est = image*(est_mask.unsqueeze(1))
                 grid_true = make_grid(images_true, nrow=9)
                 summary.add_image("true_objects", grid_true, global_step=epoch_idx)
                 grid_est = make_grid(images_est, nrow=9)

@@ -27,21 +27,26 @@ if __name__ == "__main__":
     parser.add_argument("-logdir", default=None, type=str)
     parser.add_argument("-lr", default=0.001, type=float)
     parser.add_argument("-epochs", default=10, type=int)
+    parser.add_argument("-batch_size", default=9, type=int)
     parser.add_argument("-load_memory", action="store_true")
     args = parser.parse_args()
 
     option = args.option
     summary = SummaryWriter(os.path.join(args.logdir, date.today().strftime("%Y-%m"))) if args.logdir else None
-    load_ds = partial(load_ds, load_memory=args.load_memory)
+    load_ds = partial(load_ds, load_memory=args.load_memory, batch_size=args.batch_size)
     train_loader = load_ds(args.train_ds)
     test_loader = load_ds(args.test_ds)
     valid_loader = load_ds(args.valid_ds)
 
     net = model.Segmentator()
     net = net.cuda()
+
+    loss_fn = torch.nn.BCELoss(reduce='none')
+    optim = torch.optim.Adam
+    summary.add_hparams({"lr": args.lr, "optimizer": type(optim), "loss_fn": type(loss_fn), "batch_size": args.batch_size})
     print("Loaded stuff.\n Starting program.")
     if option == "train":
-        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary)
+        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary, loss_fn=loss_fn, optim=optim)
     elif option == "test":
         net.test(test_loader)
     elif option == "both":
