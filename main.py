@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     loss_fn = torch.nn.BCELoss(reduce='none')
     optim = torch.optim.Adam
-    summary.add_hparams({"lr": args.lr, "optimizer": type(optim), "loss_fn": type(loss_fn), "batch_size": args.batch_size})
+    summary.add_hparams({"lr": args.lr, "optimizer": str(type(optim)), "loss_fn": str(type(loss_fn)), "batch_size": args.batch_size}, {})
     print("Starting program.")
     if option == "train":
         net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary, loss_fn=loss_fn, optim=optim)

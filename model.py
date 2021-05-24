@@ -62,7 +62,7 @@ class Segmentator(nn.Module):
     def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-2, loss_fn=lossl1, summary: SummaryWriter=None, optim:torch.optim.Optimizer=torch.optim.Adam):
         """Train and validates model, if valid_loader is None then won't perform validation.
         """
-        optimizer = optim(self.parameters(), lr=lr, momentum=0.9)
+        optimizer = optim(self.parameters(), lr=lr)
         s = f"optimizer: {type(optimizer)}\nloss: {type(loss_fn)}\n"
         summary.add_text("desc", s)
         for epoch_idx in range(epochs):
