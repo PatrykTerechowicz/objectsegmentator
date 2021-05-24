@@ -14,7 +14,7 @@ is_cuda = torch.cuda.is_available()
 preprocess = Compose([Resize(224), ToTensor()])
 
 def load_ds(ds_dir, load_memory, batch_size=9):
-    ds = data_loader.ObjectSegmentationDataset(ds_dir=ds_dir, annotation_path=os.path.join(ds_dir, "annotations.json"), load_memory=load_memory, preproces=preprocess) if ds_dir else None
+    ds = data_loader.ObjectSegmentationDataset(ds_dir=ds_dir, annotation_path=os.path.join(ds_dir, "annotations.json"), load_memory=load_memory, preprocess=preprocess) if ds_dir else None
     if ds: return data.DataLoader(ds, batch_size=batch_size, num_workers=4, pin_memory=True)
     return None
 
