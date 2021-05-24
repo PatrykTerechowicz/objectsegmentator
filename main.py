@@ -33,10 +33,12 @@ if __name__ == "__main__":
 
     option = args.option
     summary = SummaryWriter(os.path.join(args.logdir, date.today().strftime("%Y-%m"))) if args.logdir else None
+    print(f"Loading data...")
     load_ds = partial(load_ds, load_memory=args.load_memory, batch_size=args.batch_size)
     train_loader = load_ds(args.train_ds)
     test_loader = load_ds(args.test_ds)
     valid_loader = load_ds(args.valid_ds)
+    print(f"Data loaded.")
 
     net = model.Segmentator()
     net = net.cuda()
@@ -44,7 +46,7 @@ if __name__ == "__main__":
     loss_fn = torch.nn.BCELoss(reduce='none')
     optim = torch.optim.Adam
     summary.add_hparams({"lr": args.lr, "optimizer": type(optim), "loss_fn": type(loss_fn), "batch_size": args.batch_size})
-    print("Loaded stuff.\n Starting program.")
+    print("Starting program.")
     if option == "train":
         net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary, loss_fn=loss_fn, optim=optim)
     elif option == "test":

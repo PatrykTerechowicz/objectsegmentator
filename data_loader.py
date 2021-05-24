@@ -3,12 +3,12 @@ import torch.nn as nn
 import json
 import os
 import numpy as np
+from tqdm import tqdm
 from PIL import Image, ImageDraw
 from torchvision.transforms import ToTensor
 from torch.utils import data
 from typing import List, Tuple
 
-from tqdm.std import tqdm
 
 
 to_tensor = ToTensor()
@@ -65,15 +65,13 @@ class ObjectSegmentationDataset(data.Dataset):
         self.load_memory = load_memory
         if self.load_memory:
             self.data = []
-            for data in self.data_raw:
+            for data in tqdm(self.data_raw):
                 filename, regions = data
                 image = load_image(os.path.join(ds_dir, filename))
                 mask = create_mask(image, regions)
                 if preprocess:
                     image = preprocess(image)
                     mask = preprocess(mask.unsqueeze(1)).squeeze(1)
-                    if normalize: image = normalize(image)
-                    if augment: image = augment(image)
                 self.data.append((image, mask))
 
     def __len__(self):
