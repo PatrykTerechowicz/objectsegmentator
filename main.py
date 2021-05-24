@@ -6,8 +6,8 @@ import os
 import model
 from functools import partial
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.datasets import Compose, ToTensor, Resize
-
+from torchvision.transforms import Compose, ToTensor, Resize
+import sys
 is_cuda = torch.cuda.is_available()
 
 transform = Compose([Resize(224), ToTensor()])
@@ -24,6 +24,8 @@ if __name__ == "__main__":
     parser.add_argument("-test_ds", default=None, type=str)
     parser.add_argument("-valid_ds", default=None, type=str)
     parser.add_argument("-logdir", default=None, type=str)
+    parser.add_argument("-lr", default=0.001, type=float)
+    parser.add_argument("-epochs", default=10, type=int)
     parser.add_argument("-load_memory", action="store_true")
     args = parser.parse_args()
 
@@ -38,9 +40,10 @@ if __name__ == "__main__":
     net = net.cuda()
     print("Loaded stuff.\n Starting program.")
     if option == "train":
-        net.train(train_loader, valid_loader, epochs=10, lr=0.001, summary=summary)
+        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary)
     elif option == "test":
-        pass
+        net.test(test_loader)
     elif option == "both":
-        pass
+        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, summary=summary)
+        net.test(test_loader)
     

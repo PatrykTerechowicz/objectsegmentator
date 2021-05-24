@@ -33,6 +33,7 @@ def put_region(r, region_tensor):
     ImageDraw.Draw(mask_img).polygon(polygon, outline=1, fill=1)
     mask = torch.from_numpy(np.array(mask_img))
     region_tensor[mask==1] = 1
+    region_tensor[mask==0] = -1
 
 
 def create_mask(image, regions):
