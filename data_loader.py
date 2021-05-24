@@ -49,7 +49,7 @@ class ObjectSegmentationDataset(data.Dataset):
     Args:
         data ([type]): [description]
     """
-    def __init__(self, ds_dir: str, annotation_path: str, load_memory=False):
+    def __init__(self, ds_dir: str, annotation_path: str, load_memory=False, preprocess = None, normalize=None, augment = None):
         super(ObjectSegmentationDataset, self).__init__()
         self.ds_dir = ds_dir
         if not os.path.exists(annotation_path):
@@ -69,6 +69,11 @@ class ObjectSegmentationDataset(data.Dataset):
                 filename, regions = data
                 image = load_image(os.path.join(ds_dir, filename))
                 mask = create_mask(image, regions)
+                if preprocess:
+                    image = preprocess(image)
+                    mask = preprocess(mask)
+                    if normalize: image = normalize(image)
+                    if augment: image = augment(image)
                 self.data.append((image, mask))
 
     def __len__(self):
