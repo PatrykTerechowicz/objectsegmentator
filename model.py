@@ -19,7 +19,6 @@ def put_masks(images: Tensor, masks: Tensor):
 class Segmentator(nn.Module):
     def __init__(self) -> None:
         super(Segmentator, self).__init__()
-        self.loss_fn = torch.nn.BCELoss(reduction='mean')
         self.conv1 = nn.Conv2d(3, 8, 3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(11, 8, 3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(19, 8, 3, stride=1, padding=1)
