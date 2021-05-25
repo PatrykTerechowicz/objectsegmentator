@@ -2,24 +2,16 @@ import torch
 from torch import tensor
 import torch.nn as nn
 import torch.utils.data as data
-import tqdm
+from tqdm import tqdm
 import gc
 from torchvision.utils import make_grid
-from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import Variable
 
 lossl1 = torch.nn.BCELoss(reduce='none')
 
-def dice_loss(out_mask, true_mask):
-    numerator = 2 * torch.sum(out_mask * true_mask)
-    denominator = torch.sum(out_mask + true_mask)
-    return 1 - numerator/denominator
-
 def calc_iou(out_mask, true_mask):
-    predicted1 = out_mask > 0.5
-    true1 = true_mask > 0.99
-    nominator = torch.sum(true1 == predicted1)
-    denominator = torch.sum(predicted1) + torch.sum(true1) - nominator
+    nominator = torch.sum(out_mask * true_mask)
+    denominator = torch.sum(out_mask) + torch.sum(true_mask) - nominator
     return nominator/denominator
 
 def put_masks(images, masks):
@@ -59,12 +51,21 @@ class Segmentator(nn.Module):
         output = self.out_act(output)
         return output
 
-    def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-2, loss_fn=lossl1, summary: SummaryWriter=None, optim:torch.optim.Optimizer=torch.optim.Adam):
+    def calculate_loss_and_metrics(self, input: torch.Tensor, target: torch.Tensor, loss_fn: torch.nn.Module, *metrics):
+        output = self(input)
+        loss = loss_fn(output, target)
+        result_metrics = []
+        for metric in metrics:
+            m = metric(input, target)
+            result_metrics.append(m)
+        return loss, *result_metrics
+
+    def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int=10, lr: float=1e-2, loss_fn: torch.nn.Module=lossl1, optim:torch.optim.Optimizer=torch.optim.Adam):
         """Train and validates model, if valid_loader is None then won't perform validation.
         """
         optimizer = optim(self.parameters(), lr=lr)
-        s = f"optimizer: {type(optimizer)}\nloss: {type(loss_fn)}\n"
-        summary.add_text("desc", s)
+        history = {"train_loss": [], "train_iou": [], "valid_loss": [], "valid_iou": []}
+        image_history = {"true": [], "predicted": []}
         for epoch_idx in range(epochs):
             # report one image
             for data in train_loader:
@@ -74,45 +75,39 @@ class Segmentator(nn.Module):
                 est_mask = self(image)
                 images_true = image*(true_mask.unsqueeze(1))
                 images_est = image*(est_mask.unsqueeze(1))
-                grid_true = make_grid(images_true, nrow=9)
-                summary.add_image("true_objects", grid_true, global_step=epoch_idx)
-                grid_est = make_grid(images_est, nrow=9)
-                summary.add_image("estimated_objects", grid_est, global_step=epoch_idx)
+                grid_true = make_grid(images_true, nrow=3)
+                grid_est = make_grid(images_est, nrow=3)
+                image_history["true"].append(grid_true)
+                image_history["predicted"].append(grid_est)
                 break
             train_loss = 0
             train_iou = 0
-            for image, true_mask in tqdm.tqdm(train_loader):
+            for image, true_mask in tqdm(train_loader, desc=f"Training E{epoch_idx+1}"):
                 optimizer.zero_grad()
                 image = image.cuda()
                 true_mask = true_mask.cuda()
-                out_mask = self(image)
-                loss = torch.mean(loss_fn(out_mask, true_mask))
+                loss, iou = self.calculate_loss_and_metrics(image, true_mask, loss_fn, calc_iou)
                 loss.backward()
                 optimizer.step()
-                iou = calc_iou(out_mask, true_mask)
                 train_loss += loss
                 train_iou += iou
             n = len(train_loader.dataset)
             train_loss /= n
             train_iou /= n
-            if summary:
-                summary.add_scalars("train", {"loss": train_loss, "iou": train_iou}, epoch_idx)
+            history["train_loss"].append(train_loss)
+            history["train_iou"].append(train_iou)
             if not valid_loader: continue
             valid_loss = 0
-            valid_dice = 0
             valid_iou = 0
             with torch.no_grad():
-                for image, true_mask in tqdm.tqdm(valid_loader):
+                for image, true_mask in tqdm(valid_loader, desc=f"Validating E{epoch_idx+1}"):
                     out_mask = self(image)
-                    loss = torch.mean(loss_fn(out_mask, true_mask))
-                    dice = dice_loss(out_mask, true_mask)
-                    iou = calc_iou(out_mask, true_mask)
+                    loss, iou = self.calculate_loss_and_metrics(image, true_mask, loss_fn, calc_iou)
                     valid_loss += loss
-                    valid_dice += dice
                     valid_iou += iou
             n = len(valid_loader.dataset)
             valid_loss /= n
-            valid_dice /= n
             valid_iou /= n
-            if summary:
-                summary.add_scalars("valid", {"loss": valid_loss, "iou": valid_iou, "dice": valid_dice}, epoch_idx)
+            history["valid_loss"].append(valid_loss)
+            history["valid_iou"].append(valid_iou)
+        return history, image_history
