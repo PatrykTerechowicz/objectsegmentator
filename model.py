@@ -88,7 +88,7 @@ class Segmentator(nn.Module):
         train_iou /= n
         return train_loss, train_iou
 
-    def generate_images_from_batch(self, images: Tensor, masks: Tensor) -> Tensor:
+    def generate_images_from_batch(self, images: Tensor, masks: Tensor=None) -> Tensor:
         if not masks is None:
             return put_masks(images, masks)
         masks = self(images)
