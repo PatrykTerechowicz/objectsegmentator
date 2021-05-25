@@ -51,7 +51,7 @@ class Segmentator(nn.Module):
         loss = loss_fn(output, target)
         result_metrics = []
         for metric in metrics:
-            m = metric(input, target)
+            m = metric(output, target)
             result_metrics.append(m)
         return loss, *result_metrics
 
