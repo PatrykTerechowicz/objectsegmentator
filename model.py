@@ -94,7 +94,7 @@ class Segmentator(nn.Module):
         masks = self(images)
         return put_masks(images, masks)
 
-    def train(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int, optimizer:torch.optim.Optimizer=torch.optim.Adam):
+    def train_and_validate(self, train_loader: data.DataLoader, valid_loader: data.DataLoader, epochs: int, optimizer:torch.optim.Optimizer=torch.optim.Adam):
         """Train and validates model, if valid_loader is None then won't perform validation.
         """
         history = {"train_loss": [], "train_iou": [], "valid_loss": [], "valid_iou": []}
