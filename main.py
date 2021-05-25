@@ -56,8 +56,8 @@ if __name__ == "__main__":
         train_losses, train_ious, valid_losses, valid_ious = [], [], [], []
         for metrics in net.train_and_validate(train_loader, valid_loader, args.epochs, optimizer):
             true_masked, estimate_masked, train_loss, train_iou, valid_loss, valid_iou = metrics
-            save_batch(true_masked, os.path.join(figure_dir, f"true_masked{EPOCH}"))
-            save_batch(estimate_masked, os.path.join(figure_dir, f"estimate_masked{EPOCH}"))
+            save_batch(true_masked, os.path.join(figure_dir, f"true_masked{EPOCH}.png"))
+            save_batch(estimate_masked, os.path.join(figure_dir, f"estimate_masked{EPOCH}.png"))
             train_losses.append(train_loss)
             train_ious.append(train_iou)
             valid_losses.append(valid_loss)
