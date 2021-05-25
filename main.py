@@ -4,11 +4,14 @@ import data_loader
 import argparse
 import os
 import model
-import torch.nn.functional as F
+import matplotlib.pyplot as plt
+from plotting import plot_history, save_batch
 from datetime import date
+from losses import loss
 from functools import partial
-from torchvision.transforms import Compose, ToTensor, Resize
-import sys
+from torchvision.transforms import Compose, Resize
+from torchvision.utils import make_grid
+
 is_cuda = torch.cuda.is_available()
 
 preprocess = Compose([Resize(224)])
@@ -24,7 +27,9 @@ if __name__ == "__main__":
     parser.add_argument("-train_ds", default=None, type=str)
     parser.add_argument("-test_ds", default=None, type=str)
     parser.add_argument("-valid_ds", default=None, type=str)
+    parser.add_argument("-figure_dir", default="./figs", type=str)
     parser.add_argument("-lr", default=0.001, type=float)
+    parser.add_argument("-loss_fn", default="bce_dice", type=str)
     parser.add_argument("-epochs", default=10, type=int)
     parser.add_argument("-batch_size", default=9, type=int)
     parser.add_argument("-load_memory", action="store_true")
@@ -40,20 +45,26 @@ if __name__ == "__main__":
 
     net = model.Segmentator()
     net = net.cuda()
-
-    def loss_fn(outputs, targets, eps=1e-15, smooth=1., w=1/3):
-        bce = F.binary_cross_entropy(outputs, targets, reduction="mean")
-        intersection = (outputs * targets).sum()
-        union = outputs.sum() + targets.sum()
-        dice = (2. * intersection + smooth)/(union + eps + smooth)
-        return w * bce - (1 - w)*torch.log(dice)
-    optim = torch.optim.Adam
+    net.loss_fn = loss[args.loss_fn]
+    
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
     print("Starting program.")
+    figure_dir = os.path.join(args.figure_dir, date.today().strftime("%Y-%m-%d"))
+    os.makedirs(figure_dir)
     if option == "train":
-        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr, loss_fn=loss_fn, optim=optim)
-    elif option == "test":
-        net.test(test_loader)
-    elif option == "both":
-        net.train(train_loader, valid_loader, epochs=args.epochs, lr=args.lr)
-        net.test(test_loader)
+        EPOCH = 1
+        train_losses, train_ious, valid_losses, valid_ious = [], [], [], []
+        for metrics in net.train(train_loader, valid_loader, args.epochs, optimizer):
+            true_masked, estimate_masked, train_loss, train_iou, valid_loss, valid_iou = metrics
+            save_batch(true_masked, os.path.join(figure_dir, f"true_masked{EPOCH}"))
+            save_batch(estimate_masked, os.path.join(figure_dir, f"estimate_masked{EPOCH}"))
+            train_losses.append(train_loss)
+            train_ious.append(train_iou)
+            valid_losses.append(valid_loss)
+            valid_ious.append(valid_iou)
+            EPOCH += 1
+        fig = plot_history({"train_loss": train_losses, "train_iou": train_ious, "valid_loss": valid_losses, "valid_iou": valid_ious})
+        fig.savefig(os.path.join(figure_dir, "output_figure.pdf"))
+        plt.close(fig)
+    else: print(f"{option} not implemented yet")
     
