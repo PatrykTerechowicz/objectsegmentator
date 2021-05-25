@@ -9,8 +9,6 @@ from torchvision.transforms import ToTensor
 from torch.utils import data
 from typing import List, Tuple
 
-
-
 to_tensor = ToTensor()
 
 def load_image(file_path):
@@ -61,7 +59,7 @@ class ObjectSegmentationDataset(data.Dataset):
             image = img_metadata[key]
             filename = image["filename"]
             regions = image["regions"]
-            self.data_raw.append((filename, regions))
+            if os.path.exists(os.path.join(ds_dir, filename)): self.data_raw.append((filename, regions))
         self.load_memory = load_memory
         if self.load_memory:
             self.data = []
