@@ -66,5 +66,6 @@ if __name__ == "__main__":
         fig = plot_history({"train_loss": train_losses, "train_iou": train_ious, "valid_loss": valid_losses, "valid_iou": valid_ious})
         fig.savefig(os.path.join(figure_dir, "output_figure.pdf"))
         plt.close(fig)
+        torch.save(net.state_dict(), os.path.join(figure_dir, "model.pth"))
     else: print(f"{option} not implemented yet")
     
