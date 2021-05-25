@@ -50,7 +50,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr)
     print("Starting program.")
     figure_dir = os.path.join(args.figure_dir, date.today().strftime("%Y-%m-%d"))
-    os.makedirs(figure_dir)
+    if not os.path.exists(figure_dir): os.makedirs(figure_dir)
     if option == "train":
         EPOCH = 1
         train_losses, train_ious, valid_losses, valid_ious = [], [], [], []
