@@ -112,7 +112,9 @@ class Segmentator(nn.Module):
             train_loss, train_iou = self._train_epoch(train_loader, epoch_idx, optimizer)
             # VALIDATE
             # if valid loader not given then we don't perform validation
-            if not valid_loader: continue
+            if not valid_loader: 
+                yield true_masked, estimate_masked, train_loss, train_iou, .0, .0
+                continue
             self.eval()
             valid_loss, valid_iou = self.validate(valid_loader, epoch_idx)
             yield true_masked, estimate_masked, train_loss, train_iou, valid_loss, valid_iou
