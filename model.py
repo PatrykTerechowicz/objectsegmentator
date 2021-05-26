@@ -104,7 +104,6 @@ class Segmentator(nn.Module):
             self.eval()
             images, true_masks = next(iter(train_loader))
             images, true_masks = images.cuda(), true_masks.cuda()
-            true_masked = self.generate_images_from_batch(images, true_masks).detach().cpu()
             estimate_masked = self.generate_images_from_batch(images).detach().cpu()
             del images, true_masks
             # TRAINING
@@ -113,8 +112,8 @@ class Segmentator(nn.Module):
             # VALIDATE
             # if valid loader not given then we don't perform validation
             if not valid_loader: 
-                yield true_masked, estimate_masked, train_loss, train_iou, .0, .0
+                yield estimate_masked, train_loss, train_iou, .0, .0
                 continue
             self.eval()
             valid_loss, valid_iou = self.validate(valid_loader, epoch_idx)
-            yield true_masked, estimate_masked, train_loss, train_iou, valid_loss, valid_iou
+            yield estimate_masked, train_loss, train_iou, valid_loss, valid_iou
