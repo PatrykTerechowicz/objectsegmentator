@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
+from torch.nn import Conv2d
 import torch.utils.data as data
 from torch import Tensor
 from tqdm import tqdm
 from torch.autograd import Variable
+from typing import Optional, Callable, List
 
 
 def calc_iou(out_mask, true_mask):
@@ -15,36 +17,76 @@ def put_masks(images: Tensor, masks: Tensor):
     B, C, H, W = images.shape
     masks = masks.reshape((B, 1, H, W))
     return images*masks
+
+class ConvBNActivation(nn.Sequential):
+    def __init__(
+        self,
+        in_planes: int,
+        out_planes: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        groups: int = 1,
+        norm_layer: Optional[Callable[..., nn.Module]] = None,
+        activation_layer: Optional[Callable[..., nn.Module]] = None,
+        dilation: int = 1,
+    ) -> None:
+        padding = (kernel_size - 1) // 2 * dilation
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        if activation_layer is None:
+            activation_layer = nn.ReLU6
+        super(ConvBNActivation, self).__init__(
+            nn.Conv2d(in_planes, out_planes, kernel_size, stride, padding, dilation=dilation, groups=groups,
+                      bias=False),
+            norm_layer(out_planes),
+            activation_layer(inplace=True)
+        )
+
+class InvertedResidual(nn.Module):
+    def __init__(self, in_planes, out_planes, stride, expand_ratio, norm_layer: Optional[Callable[..., nn.Module]]=None):
+        super(InvertedResidual, self).__init__()
+        assert stride in [1, 2]
+        self.res_connect = True if stride == 1 and out_planes == in_planes else False
+        hidden_dim = int(round(in_planes*expand_ratio))
+        layers: List[nn.Module] = []
+        if expand_ratio != 1:
+            layers.append(ConvBNActivation(in_planes, hidden_dim, kernel_size=1))
+        layers.extend([ConvBNActivation(hidden_dim, hidden_dim, kernel_size=3, stride=stride, groups=hidden_dim),
+            Conv2d(hidden_dim, out_planes, kernel_size=1)
+            ])
+        
+        self.conv = nn.Sequential(*layers)
     
+    def forward(self, x: Tensor) -> Tensor:
+        if self.res_connect: return x + self.conv(x)
+        return self.conv(x)
+
+
 class Segmentator(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, in_channels=3) -> None:
         super(Segmentator, self).__init__()
-        self.conv1 = nn.Conv2d(3, 8, 3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(11, 8, 3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(19, 8, 3, stride=1, padding=1)
-        self.conv4 = nn.Conv2d(27, 8, 3, stride=1, padding=1)
-        self.finconv1 = nn.Conv2d(35, 16, 5, stride=1, padding=2)
-        self.finconv2 = nn.Conv2d(16, 1, 5, stride=1, padding=2)
-        self.vec = Variable(torch.randn(1, 16, 1, 1), requires_grad=True)
-        self.act = nn.Hardswish()
-        self.out_act = nn.Sigmoid()
-        self.debug = False
-    
-    def toggle_debug(self):
-        self.debug = not self.debug
-        return self.debug
+        self.first_conv = ConvBNActivation(in_channels, 16)
+        t = [
+            (16, 24, 1, 1),
+            (24, 24, 1, 6),
+            (24, 32, 1, 6),
+            (32, 32, 1, 6),
+            (32, 64, 1, 6),
+            (64, 64, 1, 6),
+            (64, 96, 1, 6)
+        ]
+        residual_layers = [InvertedResidual(inc, ouc, stride, expansion) for inc, ouc, stride, expansion in t]
+        self.middle_layers = nn.Sequential(*residual_layers)
+        self.last_layer = InvertedResidual(96, 1, 1, 1)
+        self.activation = nn.Sigmoid()
     
     def forward(self, input: Tensor):
         B, C, H, W = input.shape
-        x = torch.cat([input, self.act(self.conv1(input))], dim=1)
-        x = torch.cat([x, self.act(self.conv2(x))], dim=1)
-        x = torch.cat([x, self.act(self.conv3(x))], dim=1)
-        x = torch.cat([x, self.act(self.conv4(x))], dim=1)
-        x = self.finconv1(x)
-        x = self.act(x)
-        output = self.finconv2(x)[:, 0, ...]
-        output = self.out_act(output)
-        return output
+        x = self.first_conv(input)
+        x = self.middle_layers(x)
+        x = self.last_layer(x)
+        x = self.activation(x)
+        return x
 
     def calculate_loss_and_metrics(self, input: Tensor, target: Tensor, loss_fn: torch.nn.Module, *metrics):
         output = self(input)
