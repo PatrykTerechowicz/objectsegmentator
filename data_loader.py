@@ -7,7 +7,7 @@ from tqdm import tqdm
 from PIL import Image, ImageDraw
 from torchvision.transforms import ToTensor
 from torch.utils import data
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 to_tensor = ToTensor()
 
@@ -46,13 +46,16 @@ class ObjectSegmentationDataset(data.Dataset):
     Args:
         data ([type]): [description]
     """
-    def __init__(self, ds_dir: str, annotation_path: str, load_memory=False, preprocess = None, normalize=None, augment = None):
+    def __init__(self, ds_dir: str, annotation_path: str, load_memory=False, preprocess_image = None, preprocess_mask = None, normalize=None, augment: Optional[nn.Module]= None):
         super(ObjectSegmentationDataset, self).__init__()
         self.ds_dir = ds_dir
         if not os.path.exists(annotation_path):
             raise FileExistsError("Cant find annotation file!")
         self.annotations = json.load(open(annotation_path))
         self.data_raw: List[Tuple[str, List]] = []
+        self.augment = augment
+        self.preprocess_image = preprocess_image
+        self.preprocess_mask = preprocess_mask
         img_metadata = self.annotations["_via_img_metadata"]
         for key in img_metadata:
             image = img_metadata[key]
@@ -66,9 +69,10 @@ class ObjectSegmentationDataset(data.Dataset):
                 filename, regions = data
                 image = load_image(os.path.join(ds_dir, filename))
                 mask = create_mask(image, regions)
-                if preprocess:
-                    image = preprocess(image)
-                    mask = preprocess(mask.unsqueeze(0)).squeeze(0)
+                if preprocess_image:
+                    image = preprocess_image(image)
+                if preprocess_mask:
+                    mask = preprocess_mask(mask)
                 self.data.append((image, mask))
 
     def __len__(self):
@@ -78,10 +82,18 @@ class ObjectSegmentationDataset(data.Dataset):
     def __getitem__(self, index):
         if self.load_memory: 
             image, mask = self.data[index]
-            return image, mask
-        filename, regions = self.data_raw[index]
-        image = load_image(os.path.join(self.ds_dir, filename))
-        mask = create_mask(image, regions)
+        else:
+            filename, regions = self.data_raw[index]
+            image = load_image(os.path.join(self.ds_dir, filename))
+            mask = create_mask(image, regions)
+            if self.preprocess_image:
+                image = self.preprocess_image(image)
+            if self.preprocess_mask:
+                mask = self.preprocess_mask(mask)
+        if self.augment:
+            transformed = self.augment(image=image, mask=mask)
+            image = transformed["image"]
+            mask = transformed["mask"]
         return image, mask
 
 if __name__ == "__main__":
