@@ -112,7 +112,7 @@ class Segmentator(nn.Module):
         n = len(valid_loader.dataset)
         valid_loss /= n
         valid_iou /= n
-        return valid_loss, valid_iou
+        return valid_loss.cpu().item(), valid_iou.cpu().item()
     
     def _train_epoch(self, train_loader: data.DataLoader, epoch_idx: int, optimizer: torch.optim.Optimizer):
         assert self.loss_fn, "Model has no set loss function!"
@@ -130,7 +130,7 @@ class Segmentator(nn.Module):
         n = len(train_loader.dataset)
         train_loss /= n
         train_iou /= n
-        return train_loss, train_iou
+        return train_loss.cpu().item(), train_iou.cpu().item()
 
     def generate_images_from_batch(self, images: Tensor, masks: Tensor=None) -> Tensor:
         if not masks is None:
