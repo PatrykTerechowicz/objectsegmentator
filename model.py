@@ -70,20 +70,22 @@ class Segmentator(nn.Module):
             (16, 24, 1, 1),
             (24, 24, 1, 6),
             (24, 32, 1, 6),
-            (32, 32, 1, 6),
+            (32, 32, 2, 6),
             (32, 64, 1, 6),
             (64, 64, 1, 6),
             (64, 96, 1, 6)
         ]
         residual_layers = [InvertedResidual(inc, ouc, stride, expansion) for inc, ouc, stride, expansion in t]
         self.middle_layers = nn.Sequential(*residual_layers)
-        self.last_layer = InvertedResidual(96, 1, 1, 1)
+        self.deconvolution = nn.ConvTranspose2d(96, 32, kernel_size=2, stride=2)
+        self.last_layer = InvertedResidual(32, 1, 1, 1)
         self.activation = nn.Sigmoid()
     
     def forward(self, input: Tensor):
         B, C, H, W = input.shape
         x = self.first_conv(input)
         x = self.middle_layers(x)
+        x = self.deconvolution(x)
         x = self.last_layer(x)
         x = self.activation(x)
         return x
