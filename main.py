@@ -9,12 +9,12 @@ from plotting import plot_history, save_batch
 from datetime import date
 from losses import loss
 from functools import partial
-from torchvision.transforms import Compose, Resize
+from torchvision.transforms import Compose, Resize, Normalize
 from torchvision.utils import make_grid
 
 is_cuda = torch.cuda.is_available()
 
-preprocess = Compose([Resize(224)])
+preprocess = Compose([Resize(224), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
 def load_ds(ds_dir, load_memory, batch_size=9):
     ds = data_loader.ObjectSegmentationDataset(ds_dir=ds_dir, annotation_path=os.path.join(ds_dir, "annotations.json"), load_memory=load_memory, preprocess=preprocess) if ds_dir else None
