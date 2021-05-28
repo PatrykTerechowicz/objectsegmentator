@@ -1,3 +1,6 @@
+from kornia.augmentation.augmentation import Denormalize, CenterCrop, RandomGaussianNoise, ColorJitter, GaussianBlur, RandomRotation, RandomSolarize, RandomEqualize, Normalize
+from matplotlib import image
+from numpy.lib.type_check import imag
 import torch
 import torch.utils.data as data
 import data_loader
@@ -5,20 +8,33 @@ import argparse
 import os
 import model
 import matplotlib.pyplot as plt
+import numpy as np
 from plotting import plot_history, save_batch
 from datetime import date
 from losses import loss
 from functools import partial
-from torchvision.transforms import Compose, Resize, Normalize, CenterCrop
 from torchvision.utils import make_grid
 
 is_cuda = torch.cuda.is_available()
 
-preprocess_image = Compose([Resize(448), CenterCrop(320), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
-preprocess_mask = Compose([Resize(448), CenterCrop(320)])
+clr_jitter = ColorJitter(0.1, 0.1, 0.1, 0.1, p=.371)
+blur = GaussianBlur(kernel_size=(3,9), sigma=(.5, 1), p=.25)
+rgs = RandomGaussianNoise(p=0.25, std=0.1)
+normalize = Normalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
+denormalize = Denormalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
+rotation = RandomRotation((-15, 15), return_transform=True)
+crop1 = CenterCrop(480)
+def transform_data(image_batch, mask_batch):
+    image_batch = clr_jitter(image_batch)
+    image_batch = blur(image_batch)
+    image_batch = rgs(image_batch)
+    image_batch = normalize(image_batch)
+    return image_batch, mask_batch
+
+
 
 def load_ds(ds_dir, load_memory, batch_size=9):
-    ds = data_loader.ObjectSegmentationDataset(ds_dir=ds_dir, annotation_path=os.path.join(ds_dir, "annotations.json"), load_memory=load_memory, preprocess_image=preprocess_image, preprocess_mask=preprocess_mask) if ds_dir else None
+    ds = data_loader.ObjectSegmentationDataset(ds_dir=ds_dir, annotation_path=os.path.join(ds_dir, "annotations.json"), load_memory=load_memory) if ds_dir else None
     if ds: return data.DataLoader(ds, batch_size=batch_size, num_workers=4, pin_memory=True, drop_last=True)
     return None
 
@@ -55,7 +71,7 @@ if __name__ == "__main__":
     if option == "train":
         EPOCH = 1
         train_losses, train_ious, valid_losses, valid_ious = [], [], [], []
-        for metrics in net.train_and_validate(train_loader, valid_loader, args.epochs, optimizer):
+        for metrics in net.train_and_validate(train_loader, valid_loader, args.epochs, optimizer, transform_data=transform_data, denormalizer=denormalize):
             estimate_masked, train_loss, train_iou, valid_loss, valid_iou = metrics
             save_batch(estimate_masked, os.path.join(figure_dir, f"estimates-{EPOCH}.png"))
             train_losses.append(train_loss)
