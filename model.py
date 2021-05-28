@@ -194,6 +194,7 @@ class Segmentator(nn.Module):
             # REPORT ONE IMAGE
             self.eval()
             images, true_masks = next(iter(train_loader))
+            images, true_masks = transform_data(images, true_masks)
             images, true_masks = images.cuda(), true_masks.cuda()
             estimate_masked = self.generate_images_from_batch(images, denormalizer=denormalizer).detach().cpu()
             del images, true_masks

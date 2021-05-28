@@ -46,15 +46,13 @@ class ObjectSegmentationDataset(data.Dataset):
     Args:
         data ([type]): [description]
     """
-    def __init__(self, ds_dir: str, annotation_path: str, load_memory=False, preprocess_image = None, preprocess_mask = None):
+    def __init__(self, ds_dir: str, annotation_path: str, load_memory=False):
         super(ObjectSegmentationDataset, self).__init__()
         self.ds_dir = ds_dir
         if not os.path.exists(annotation_path):
             raise FileExistsError("Cant find annotation file!")
         self.annotations = json.load(open(annotation_path))
         self.data_raw: List[Tuple[str, List]] = []
-        self.preprocess_image = preprocess_image
-        self.preprocess_mask = preprocess_mask
         img_metadata = self.annotations["_via_img_metadata"]
         for key in img_metadata:
             image = img_metadata[key]
@@ -68,10 +66,6 @@ class ObjectSegmentationDataset(data.Dataset):
                 filename, regions = data
                 image = load_image(os.path.join(ds_dir, filename))
                 mask = create_mask(image, regions)
-                if preprocess_image:
-                    image = preprocess_image(image)
-                if preprocess_mask:
-                    mask = preprocess_mask(mask.unsqueeze(0)).squeeze(0)
                 self.data.append((image, mask))
 
     def __len__(self):
@@ -85,10 +79,6 @@ class ObjectSegmentationDataset(data.Dataset):
             filename, regions = self.data_raw[index]
             image = load_image(os.path.join(self.ds_dir, filename))
             mask = create_mask(image, regions)
-            if self.preprocess_image:
-                image = self.preprocess_image(image)
-            if self.preprocess_mask:
-                mask = self.preprocess_mask(mask.unsqueeze(0)).squeeze(0)
         return image, mask
 
 if __name__ == "__main__":
