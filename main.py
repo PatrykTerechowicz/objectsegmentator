@@ -29,11 +29,8 @@ def transform_data(image_batch, mask_batch):
     image_batch = blur(image_batch)
     image_batch = rgs(image_batch)
     image_batch = normalize(image_batch)
-<<<<<<< HEAD
     image_batch = crop1(image_batch)
     mask_batch = crop1(mask_batch)
-=======
->>>>>>> 8fb2ec9c7ceeff5648b9f12ee8acb1d5f515583f
     return image_batch, mask_batch
 
 
