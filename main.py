@@ -19,11 +19,6 @@ is_cuda = torch.cuda.is_available()
 preprocess_image = Compose([Resize(448), Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 preprocess_mask = Compose([Resize(448)])
 
-train_augment = A.Compose([
-    A.ShiftScaleRotate(),
-    A.ElasticTransform()
-])
-
 def load_ds(ds_dir, load_memory, batch_size=9):
     ds = data_loader.ObjectSegmentationDataset(ds_dir=ds_dir, annotation_path=os.path.join(ds_dir, "annotations.json"), load_memory=load_memory, preprocess_image=preprocess_image, preprocess_mask=preprocess_mask) if ds_dir else None
     if ds: return data.DataLoader(ds, batch_size=batch_size, num_workers=4, pin_memory=True, drop_last=True)
@@ -47,8 +42,6 @@ if __name__ == "__main__":
     print(f"Loading data...")
     load_ds = partial(load_ds, load_memory=args.load_memory, batch_size=args.batch_size)
     train_loader = load_ds(args.train_ds)
-    if train_loader != None:
-        train_loader.dataset.augment = train_augment
     test_loader = load_ds(args.test_ds)
     valid_loader = load_ds(args.valid_ds)
     print(f"Data loaded.")
