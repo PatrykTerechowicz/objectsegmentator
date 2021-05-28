@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from torch.nn import Conv2d
 import torch.utils.data as data
-from custom_activations import HardSwish
 from torch import Tensor
 from tqdm import tqdm
 from torch.autograd import Variable
@@ -36,7 +35,7 @@ class ConvBNActivation(nn.Sequential):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if activation_layer is None:
-            activation_layer = HardSwish
+            activation_layer = nn.ReLU6
         super(ConvBNActivation, self).__init__(
             nn.Conv2d(in_planes, out_planes, kernel_size, stride, padding, dilation=dilation, groups=groups,
                       bias=False),
@@ -60,7 +59,7 @@ class TransposeConvBNActivation(nn.Sequential):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if activation_layer is None:
-            activation_layer = HardSwish
+            activation_layer = nn.ReLU6
         super(TransposeConvBNActivation, self).__init__(
             nn.ConvTranspose2d(in_planes, out_planes, kernel_size, stride, padding=padding, dilation=dilation, groups=groups),
             norm_layer(out_planes),
