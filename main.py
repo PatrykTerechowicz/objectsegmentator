@@ -1,4 +1,3 @@
-from albumentations.augmentations.transforms import RandomRotate90, ShiftScaleRotate
 import torch
 import torch.utils.data as data
 import data_loader
@@ -6,7 +5,6 @@ import argparse
 import os
 import model
 import matplotlib.pyplot as plt
-import albumentations as A
 from plotting import plot_history, save_batch
 from datetime import date
 from losses import loss
