@@ -71,7 +71,7 @@ class ObjectSegmentationDataset(data.Dataset):
                 if preprocess_image:
                     image = preprocess_image(image)
                 if preprocess_mask:
-                    mask = preprocess_mask(mask)
+                    mask = preprocess_mask(mask.unsqueeze(0)).squeeze(0)
                 self.data.append((image, mask))
 
     def __len__(self):
@@ -88,7 +88,7 @@ class ObjectSegmentationDataset(data.Dataset):
             if self.preprocess_image:
                 image = self.preprocess_image(image)
             if self.preprocess_mask:
-                mask = self.preprocess_mask(mask)
+                mask = self.preprocess_mask(mask.unsqueeze(0)).squeeze(0)
         return image, mask
 
 if __name__ == "__main__":
