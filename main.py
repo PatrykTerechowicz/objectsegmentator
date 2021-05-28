@@ -73,7 +73,7 @@ if __name__ == "__main__":
     if option == "train":
         EPOCH = 1
         train_losses, train_ious, valid_losses, valid_ious = [], [], [], []
-        for metrics in net.train_and_validate(train_loader, valid_loader, args.epochs, optimizer, transform_data=transform_data, denormalizer=denormalize):
+        for metrics in net.train_and_validate(train_loader, valid_loader, args.epochs, optimizer=optimizer, transform_data=transform_data, denormalizer=denormalize):
             estimate_masked, train_loss, train_iou, valid_loss, valid_iou = metrics
             save_batch(estimate_masked, os.path.join(figure_dir, f"estimates-{EPOCH}.png"))
             train_losses.append(train_loss)
