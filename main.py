@@ -9,6 +9,7 @@ import os
 import model
 import matplotlib.pyplot as plt
 import numpy as np
+from custom_activations import HardELU
 from plotting import plot_history, save_batch
 from datetime import date
 from losses import loss
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     valid_loader = load_ds(args.valid_ds)
     print(f"Data loaded.")
 
-    net = model.Segmentator()
+    net = model.Segmentator(activation_function=HardELU)
     net = net.cuda()
     net.loss_fn = loss[args.loss_fn]
     

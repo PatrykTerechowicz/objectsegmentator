@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-class HardSwish(nn.Module):
-    def __init__(self, inplace=False):
-        super().__init__()
-
+class HardELU(nn.Module):
+    def __init__(self):
+        super(HardELU, self).__init__()
+        self.a = nn.Parameter(torch.abs(torch.randn()))
+    
     def forward(self, input):
-        return torch.relu(input)-torch.exp(torch.neg(torch.square(input)))
+        return F.relu(input+self.a)-self.a
