@@ -1,12 +1,13 @@
 from numpy import floor
 import torch
 import torch.nn as nn
-from torch.nn import Conv2d
 import torch.utils.data as data
+from torch.nn import Conv2d
 from torch import Tensor
 from tqdm import tqdm
 from torch.autograd import Variable
 from typing import Optional, Callable, List, Tuple
+import torch.nn.functional as F
 
 
 def calc_params(model):
@@ -131,7 +132,10 @@ class Segmentator(nn.Module):
         self.sig = nn.Sigmoid()
     
     def forward(self, input: Tensor):
-        return self.sig(self.layers(input))
+        small_mask = self.sig(self.layers(input))
+        B, C, H, W = input.shape
+        big_mask = F.interpolate(small_mask, size=(H, W))
+        return big_mask
 
 
     def calculate_loss_and_metrics(self, input: Tensor, target: Tensor, loss_fn: torch.nn.Module, *metrics):
