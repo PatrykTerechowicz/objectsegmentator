@@ -13,6 +13,7 @@ from datetime import datetime
 import torch.nn as nn
 import torch
 import data_loader
+import losses
 
 CUDA = torch.cuda.is_available()
 
@@ -54,7 +55,9 @@ def main():
     optimizer = Adam
     activation_function = nn.ReLU6
     augment = data_loader.weak_augment
+    loss_fn = losses.ComboLoss()
     hyper_params = {
+        "loss_fn": type(loss).__name__,
         "optimizer": optimizer.__name__,
         "activation_function": activation_function.__name__,
         "augment strategy": augment.__name
@@ -62,6 +65,7 @@ def main():
     task.connect(hyper_params, hyper_params)
     train_loader, valid_loader = load_datasets(args.train_ds, loader_params, load_memory=args.load_memory, valid_ds_path=args.valid_ds, valid_loader_params=loader_params)
     model: Segmentator = Segmentator(activation_function=activation_function)
+    model.loss_fn = loss_fn
     optimizer = optimizer(model.parameters(), lr=args.lr)
     for n, metrics in enumerate(model.train_and_validate(train_loader, valid_loader, optimizer, args.epochs, denormalizer=data_loader.denormalize, transform_data=augment)):
         estimate_masked, train_loss, train_iou, valid_loss, valid_iou = metrics
