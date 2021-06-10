@@ -25,6 +25,7 @@ def weak_augment(image_batch, mask_batch):
     image_batch = normalize(image_batch)
     image_batch = crop1(image_batch)
     mask_batch = crop1(mask_batch, crop1._params)
+    return image_batch, mask_batch
 
 def load_image(file_path):
     pilim = Image.open(file_path).convert("RGB")

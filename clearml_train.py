@@ -48,7 +48,7 @@ def main():
     args = get_arguments()
     task, logger = init_task()
     loader_params = {
-        "batch_size": args["batch_size"],
+        "batch_size": args.batch_size,
         "num_workers": 4,
         "pin_memory": torch.cuda.is_available()
     }
@@ -57,15 +57,16 @@ def main():
     augment = data_loader.weak_augment
     loss_fn = losses.ComboLoss()
     hyper_params = {
-        "loss_fn": type(loss).__name__,
+        "loss_fn": type(loss_fn).__name__,
         "optimizer": optimizer.__name__,
         "activation_function": activation_function.__name__,
-        "augment strategy": augment.__name
+        "augment strategy": augment.__name__
         }
-    task.connect(hyper_params, hyper_params)
+    task.connect(hyper_params, "hyper_params")
     train_loader, valid_loader = load_datasets(args.train_ds, loader_params, load_memory=args.load_memory, valid_ds_path=args.valid_ds, valid_loader_params=loader_params)
     model: Segmentator = Segmentator(activation_function=activation_function)
     model.loss_fn = loss_fn
+    model = model.cuda()
     optimizer = optimizer(model.parameters(), lr=args.lr)
     for n, metrics in enumerate(model.train_and_validate(train_loader, valid_loader, optimizer, args.epochs, denormalizer=data_loader.denormalize, transform_data=augment)):
         estimate_masked, train_loss, train_iou, valid_loss, valid_iou = metrics
