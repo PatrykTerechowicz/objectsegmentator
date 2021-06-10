@@ -14,7 +14,11 @@ def plot_history(history):
         ax.set_title(key)
     return fig
 
-def save_batch(batch: Tensor, fp: str):
+def create_grid(batch: Tensor):
     B, C, H, W = batch.shape
     grid = make_grid(batch, nrow=math.ceil(math.sqrt(B)))
+    return grid
+
+def save_batch(batch: Tensor, fp: str):
+    grid = create_grid(batch)
     save_image(grid, fp=fp)

@@ -8,8 +8,23 @@ from PIL import Image, ImageDraw
 from torchvision.transforms import ToTensor
 from torch.utils import data
 from typing import List, Tuple, Optional
+from kornia.augmentation.augmentation import Denormalize, CenterCrop, RandomGaussianNoise, ColorJitter, GaussianBlur, RandomRotation, Normalize, RandomCrop
+
+normalize = Normalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
+denormalize = Denormalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
 
 to_tensor = ToTensor()
+clr_jitter = ColorJitter(0.1, 0.1, 0.1, 0.1, p=.371)
+blur = GaussianBlur(kernel_size=(3,9), sigma=(.5, 1), p=.25)
+rgs = RandomGaussianNoise(p=0.25, std=0.1)
+crop1 = RandomCrop((320, 320))
+def weak_augment(image_batch, mask_batch):
+    image_batch = clr_jitter(image_batch)
+    image_batch = blur(image_batch)
+    image_batch = rgs(image_batch)
+    image_batch = normalize(image_batch)
+    image_batch = crop1(image_batch)
+    mask_batch = crop1(mask_batch, crop1._params)
 
 def load_image(file_path):
     pilim = Image.open(file_path).convert("RGB")
