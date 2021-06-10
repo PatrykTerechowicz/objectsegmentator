@@ -73,7 +73,7 @@ def main():
         logger.report_image("estimates", "train", iteration=n, matrix=grid.permute((1, 2, 0)).cpu().numpy())
     date_s: str = datetime.now().strftime("%d-%m-%y_%H-%M")
     out_dir = join(args.out_path, "fg_segmentator", date_s, "best.pth")
-    torch.save(model, out_dir)
+    torch.save(model.state_dict(), out_dir)
 
 if __name__ == "__main__":
     main()
