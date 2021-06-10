@@ -9,6 +9,7 @@ from model import Segmentator
 from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
 from plotting import create_grid
+from datetime import datetime
 import torch.nn as nn
 import torch
 import data_loader
@@ -17,7 +18,8 @@ CUDA = torch.cuda.is_available()
 
 def get_arguments():
     parser = ArgumentParser()
-    parser.add_argument("-train_ds", default=None, type=str)
+    parser.add_argument("out_path", type=str)
+    parser.add_argument("train_ds", type=str)
     parser.add_argument("-valid_ds", default=None, type=str)
     parser.add_argument("-lr", default=0.001, type=float)
     parser.add_argument("-loss_fn", default="bce_dice", type=str)
@@ -69,6 +71,9 @@ def main():
         logger.add_scalar("iou", "valid", valid_iou, iteration=n)
         grid = create_grid(estimate_masked)
         logger.report_image("estimates", "train", iteration=n, matrix=grid.permute((1, 2, 0)).cpu().numpy())
+    date_s: str = datetime.now().strftime("%d-%m-%y_%H-%M")
+    out_dir = join(args.out_path, "fg_segmentator", date_s, "best.pth")
+    torch.save(model, out_dir)
 
 if __name__ == "__main__":
     main()
