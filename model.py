@@ -17,9 +17,9 @@ def calc_params(model):
     return s
 
 def calc_iou(out_mask, true_mask):
-    nominator = torch.sum(out_mask * true_mask)
-    denominator = torch.sum(out_mask) + torch.sum(true_mask) - nominator
-    return nominator/denominator
+    intersection = out_mask * true_mask
+    union = out_mask + true_mask - intersection
+    return intersection/union
 
 def put_masks(images: Tensor, masks: Tensor):
     B, C, H, W = images.shape
