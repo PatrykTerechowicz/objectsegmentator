@@ -11,7 +11,7 @@ def dice_loss(outputs, targets, smooth=1.0, eps=1e-15):
 class ComboLoss(nn.Module):
     def __init__(self):
         super(ComboLoss, self).__init__()
-        self.w = 1/10
+        self.w = 1/3
 
     def forward(self, outputs, targets):
         targets = targets.view(-1)

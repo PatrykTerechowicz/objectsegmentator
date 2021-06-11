@@ -10,6 +10,8 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
 from plotting import create_grid
 from datetime import datetime
+from custom_activations import HardELU
+import os
 import torch.nn as nn
 import torch
 import data_loader
@@ -27,11 +29,13 @@ def get_arguments():
     parser.add_argument("-epochs", default=10, type=int)
     parser.add_argument("-batch_size", default=9, type=int)
     parser.add_argument("-load_memory", action="store_true")
+    parser.add_argument("-name", type=str)
     args = parser.parse_args()
     return args
 
-def init_task():
-    task: Task = Task.init("Foreground Segmentation", "Train")
+def init_task(args):
+    name = args.name if args.name else "Train"
+    task: Task = Task.init("Foreground Segmentation", name)
     return task, task.get_logger()
 
 def load_datasets(train_ds_path: str, train_loader_params: dict, load_memory: bool=False, valid_ds_path: Optional[str] = None, valid_loader_params: dict={}):
@@ -46,21 +50,22 @@ def load_datasets(train_ds_path: str, train_loader_params: dict, load_memory: bo
 
 def main():
     args = get_arguments()
-    task, logger = init_task()
+    task, logger = init_task(args)
     loader_params = {
         "batch_size": args.batch_size,
         "num_workers": 4,
         "pin_memory": torch.cuda.is_available()
     }
     optimizer = Adam
-    activation_function = nn.ReLU6
+    activation_function = HardELU
     augment = data_loader.weak_augment
     loss_fn = losses.ComboLoss()
     hyper_params = {
         "loss_fn": type(loss_fn).__name__,
         "optimizer": optimizer.__name__,
         "activation_function": activation_function.__name__,
-        "augment strategy": augment.__name__
+        "augment strategy": augment.__name__,
+        "lr": args.lr
         }
     task.connect(hyper_params, "hyper_params")
     train_loader, valid_loader = load_datasets(args.train_ds, loader_params, load_memory=args.load_memory, valid_ds_path=args.valid_ds, valid_loader_params=loader_params)
@@ -68,17 +73,23 @@ def main():
     model.loss_fn = loss_fn
     model = model.cuda()
     optimizer = optimizer(model.parameters(), lr=args.lr)
+    optimizer.zero_grad(set_to_none=True)
     for n, metrics in enumerate(model.train_and_validate(train_loader, valid_loader, optimizer, args.epochs, denormalizer=data_loader.denormalize, transform_data=augment)):
         estimate_masked, train_loss, train_iou, valid_loss, valid_iou = metrics
-        logger.add_scalar("loss", "train", train_loss, iteration=n)
-        logger.add_scalar("loss", "valid", valid_loss, iteration=n)
-        logger.add_scalar("iou", "train", train_iou, iteration=n)
-        logger.add_scalar("iou", "valid", valid_iou, iteration=n)
+        logger.report_scalar("loss", "train", train_loss, iteration=n)
+        logger.report_scalar("loss", "valid", valid_loss, iteration=n)
+        logger.report_scalar("iou", "train", train_iou, iteration=n)
+        logger.report_scalar("iou", "valid", valid_iou, iteration=n)
         grid = create_grid(estimate_masked)
-        logger.report_image("estimates", "train", iteration=n, matrix=grid.permute((1, 2, 0)).cpu().numpy())
+        logger.report_image("estimates", "train", iteration=n, image=grid.permute((1, 2, 0)).cpu().numpy())
     date_s: str = datetime.now().strftime("%d-%m-%y_%H-%M")
-    out_dir = join(args.out_path, "fg_segmentator", date_s, "best.pth")
-    torch.save(model.state_dict(), out_dir)
+    out_dir = join(args.out_path, "fg_segmentator", date_s)
+    try:
+        os.makedirs(out_dir)
+    except FileExistsError:
+        print("Dir already exists.")
+    
+    torch.save(model.state_dict(), join(out_dir, "best.pth"))
 
 if __name__ == "__main__":
     main()
