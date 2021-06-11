@@ -1,30 +1,38 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import json
 import os
 import numpy as np
+from random import random
 from tqdm import tqdm
 from PIL import Image, ImageDraw
 from torchvision.transforms import ToTensor
 from torch.utils import data
 from typing import List, Tuple, Optional
-from kornia.augmentation.augmentation import Denormalize, CenterCrop, RandomGaussianNoise, ColorJitter, GaussianBlur, RandomRotation, Normalize, RandomCrop
+from kornia.augmentation.augmentation import Denormalize, RandomGaussianNoise, ColorJitter, GaussianBlur, Normalize, RandomResizedCrop, RandomRotation
 
 normalize = Normalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
 denormalize = Denormalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
 
 to_tensor = ToTensor()
-clr_jitter = ColorJitter(0.1, 0.1, 0.1, 0.1, p=.371)
-blur = GaussianBlur(kernel_size=(3,9), sigma=(.5, 1), p=.25)
-rgs = RandomGaussianNoise(p=0.25, std=0.1)
-crop1 = RandomCrop((320, 320))
+clr_jitter = ColorJitter(0.1, 0.1, 0.1, 0.15, p=0.37)
+blur = GaussianBlur(kernel_size=(3,9), sigma=(.5, 1), p=0.178)
+crop1 = RandomResizedCrop((224, 224), scale=(0.35, 0.7))
+crop2 = RandomResizedCrop((320, 320), scale=(0.35, 0.7))
+rot = RandomRotation(degrees=(-5, 5), p=.14)
 def weak_augment(image_batch, mask_batch):
     image_batch = clr_jitter(image_batch)
     image_batch = blur(image_batch)
-    image_batch = rgs(image_batch)
     image_batch = normalize(image_batch)
-    image_batch = crop1(image_batch)
-    mask_batch = crop1(mask_batch, crop1._params)
+    image_batch = rot(image_batch)
+    mask_batch = rot(mask_batch, rot._params)
+    if random()>0.5:
+        image_batch = crop1(image_batch)
+        mask_batch = crop1(mask_batch, crop1._params)
+    else:
+        image_batch = crop2(image_batch)
+        mask_batch = crop2(mask_batch, crop2._params)
     return image_batch, mask_batch
 
 def load_image(file_path):
@@ -62,9 +70,11 @@ class ObjectSegmentationDataset(data.Dataset):
     Args:
         data ([type]): [description]
     """
-    def __init__(self, ds_dir: str, annotation_path: str, load_memory=False):
+    def __init__(self, ds_dir: str, annotation_path: Optional[str]=None, load_memory=False):
         super(ObjectSegmentationDataset, self).__init__()
         self.ds_dir = ds_dir
+        if not annotation_path:
+            annotation_path = os.path.join(ds_dir, "annotations.json")
         if not os.path.exists(annotation_path):
             raise FileExistsError("Cant find annotation file!")
         self.annotations = json.load(open(annotation_path))
