@@ -1,3 +1,4 @@
+from matplotlib import image
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,14 +11,14 @@ from PIL import Image, ImageDraw
 from torchvision.transforms import ToTensor
 from torch.utils import data
 from typing import List, Tuple, Optional
-from kornia.augmentation.augmentation import Denormalize, RandomGaussianNoise, ColorJitter, GaussianBlur, Normalize, RandomResizedCrop, RandomRotation
+from kornia.augmentation.augmentation import Denormalize, RandomHorizontalFlip, RandomVerticalFlip, ColorJitter, GaussianBlur, Normalize, RandomResizedCrop, RandomRotation, RandomElasticTransform
 
 normalize = Normalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
 denormalize = Denormalize(torch.from_numpy(np.array([0.485, 0.456, 0.406])), torch.from_numpy(np.array([0.229, 0.224, 0.225])))
 
 to_tensor = ToTensor()
-clr_jitter = ColorJitter(0.1, 0.1, 0.1, 0.15, p=0.37)
-blur = GaussianBlur(kernel_size=(3,9), sigma=(.5, 1), p=0.178)
+clr_jitter = ColorJitter(0.1, 0.1, 0.1, 0.15, p=0.77)
+blur = GaussianBlur(kernel_size=(3,9), sigma=(.5, 1), p=0.328)
 crop1 = RandomResizedCrop((224, 224), scale=(0.35, 0.7))
 crop2 = RandomResizedCrop((320, 320), scale=(0.35, 0.7))
 rot = RandomRotation(degrees=(-5, 5), p=.14)
@@ -25,8 +26,6 @@ def weak_augment(image_batch, mask_batch):
     image_batch = clr_jitter(image_batch)
     image_batch = blur(image_batch)
     image_batch = normalize(image_batch)
-    image_batch = rot(image_batch)
-    mask_batch = rot(mask_batch, rot._params)
     if random()>0.5:
         image_batch = crop1(image_batch)
         mask_batch = crop1(mask_batch, crop1._params)
@@ -34,6 +33,28 @@ def weak_augment(image_batch, mask_batch):
         image_batch = crop2(image_batch)
         mask_batch = crop2(mask_batch, crop2._params)
     return image_batch, mask_batch
+
+elastic = RandomElasticTransform(p=0.32, sigma=(32, 32))
+rh_flip = RandomHorizontalFlip(p=0.5)
+rv_flip = RandomVerticalFlip(p=0.5)
+def strong_augment(image_batch, mask_batch):
+    image_batch = clr_jitter(image_batch)
+    image_batch = blur(image_batch)
+    image_batch = elastic(image_batch)
+    mask_batch = elastic(mask_batch, elastic._params)
+    image_batch = normalize(image_batch)
+    image_batch = rh_flip(image_batch)
+    mask_batch = rh_flip(mask_batch, rh_flip._params)
+    image_batch = rv_flip(image_batch)
+    mask_batch = rv_flip(mask_batch, rv_flip._params)
+    if random()>0.5:
+        image_batch = crop1(image_batch)
+        mask_batch = crop1(mask_batch, crop1._params)
+    else:
+        image_batch = crop2(image_batch)
+        mask_batch = crop2(mask_batch, crop2._params)
+    return image_batch, mask_batch
+
 
 def load_image(file_path):
     pilim = Image.open(file_path).convert("RGB")
@@ -105,7 +126,7 @@ class ObjectSegmentationDataset(data.Dataset):
             filename, regions = self.data_raw[index]
             image = load_image(os.path.join(self.ds_dir, filename))
             mask = create_mask(image, regions)
-        return image, mask
+        return image, mask.unsqueeze_(0)
 
 if __name__ == "__main__":
     import time
