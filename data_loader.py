@@ -6,6 +6,8 @@ import json
 import os
 import numpy as np
 from random import random
+from kornia.morphology import erosion
+from random import random
 from tqdm import tqdm
 from PIL import Image, ImageDraw
 from torchvision.transforms import ToTensor
@@ -55,6 +57,17 @@ def strong_augment(image_batch, mask_batch):
         mask_batch = crop2(mask_batch, crop2._params)
     return image_batch, mask_batch
 
+er_kernel = torch.ones((11, 11)).cuda()
+def calculate_borders(masks):
+    eroded_masks = erosion(masks, kernel=er_kernel)
+    borders = masks-eroded_masks
+    return borders-1
+
+def calculate_weights(masks, border_weight: float=0.33):
+    borders = calculate_borders(masks)
+    weights = torch.ones_like(borders)
+    weights[borders>0.9] = border_weight
+    return weights
 
 def load_image(file_path):
     pilim = Image.open(file_path).convert("RGB")
@@ -85,6 +98,21 @@ def create_mask(image, regions):
         put_region(r, mask)
     return mask
 
+def crop_tensor(tensor, cx, cy, crop_h, crop_w):
+    assert len(tensor.shape) == 3, f"wanted CxHxW tensor!, got {tensor.shape}"
+    C, H, W = tensor.shape
+    assert 0 < cx < W and 0 < cy < W, f"Center not inside image!"
+    if cx < crop_w/2: cx = crop_w/2
+    if cy < crop_h/2: cy = crop_h/2
+    if cx > W-crop_w/2: cx = W-crop_w/2
+    if cy > H-crop_h/2: cy = H-crop_h/2
+    cx = int(cx)
+    cy = int(cy)
+    x1 = int(cx - crop_w/2)
+    x2 = int(cx + crop_w/2)
+    y1 = int(cy - crop_h/2)
+    y2 = int(cy + crop_h/2)
+    return tensor[..., y1:y2, x1:x2]
 
 class ObjectSegmentationDataset(data.Dataset):
     """It will load everything into memory if load_memory=True.
@@ -97,7 +125,7 @@ class ObjectSegmentationDataset(data.Dataset):
         if not annotation_path:
             annotation_path = os.path.join(ds_dir, "annotations.json")
         if not os.path.exists(annotation_path):
-            raise FileExistsError("Cant find annotation file!")
+            raise FileExistsError("Cant find annotation file!", annotation_path)
         self.annotations = json.load(open(annotation_path))
         self.data_raw: List[Tuple[str, List]] = []
         img_metadata = self.annotations["_via_img_metadata"]
@@ -126,7 +154,26 @@ class ObjectSegmentationDataset(data.Dataset):
             filename, regions = self.data_raw[index]
             image = load_image(os.path.join(self.ds_dir, filename))
             mask = create_mask(image, regions)
-        return image, mask.unsqueeze_(0)
+        mask.unsqueeze_(0)
+        _percent = 0.0
+        _best_percent = _percent
+        n = 0
+        C, H, W = image.shape
+        best_cx = W/2
+        best_cy = H/2
+        while _percent < 0.2 and n < 11:
+            n+=1
+            cx = W*random()
+            cy = H*random()
+            _mask_m = crop_tensor(mask, cx, cy, 1000, 1000)
+            _percent = _mask_m.mean()
+            if _percent > _best_percent:
+                _best_percent = _percent
+                best_cx = cx
+                best_cy = cy
+        mask = crop_tensor(mask, best_cx, best_cy, 1000, 1000)
+        image = crop_tensor(image, best_cx, best_cy, 1000, 1000)
+        return image, mask
 
 if __name__ == "__main__":
     import time

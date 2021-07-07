@@ -23,7 +23,7 @@ def get_arguments():
     parser = ArgumentParser()
     parser.add_argument("out_path", type=str)
     parser.add_argument("train_ds", type=str)
-    parser.add_argument("-valid_ds", default=None, type=str)
+    parser.add_argument("-valid_ds", type=str)
     parser.add_argument("-lr", default=0.001, type=float)
     parser.add_argument("-loss_fn", default="bce_dice", type=str)
     parser.add_argument("-epochs", default=10, type=int)
@@ -47,7 +47,6 @@ def load_datasets(train_ds_path: str, train_loader_params: dict, load_memory: bo
         valid_loader = DataLoader(valid_ds, **valid_loader_params)
     return train_loader, valid_loader
 
-
 def main():
     args = get_arguments()
     task, logger = init_task(args)
@@ -58,7 +57,7 @@ def main():
     }
     optimizer = Adam
     activation_function = HardELU
-    augment = data_loader.weak_augment
+    augment = data_loader.strong_augment
     loss_fn = losses.ComboLoss()
     hyper_params = {
         "loss_fn": type(loss_fn).__name__,

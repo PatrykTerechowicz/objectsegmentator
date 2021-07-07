@@ -8,7 +8,7 @@ from tqdm import tqdm
 from torch.autograd import Variable
 from typing import Optional, Callable, List, Tuple
 import torch.nn.functional as F
-
+import data_loader
 
 def calc_params(model):
     s = 0
@@ -120,6 +120,8 @@ class Segmentator(nn.Module):
                     (6, 64, 4, 1),
                     (6, 120, 1, 1),
                     (6, 320, 1, 1),
+                    (6, 32, 1, 1),
+                    (6, 19, 1, 1),
                     (6, 1, 1, 1)
                 ]
         layers = []
@@ -154,7 +156,7 @@ class Segmentator(nn.Module):
         with torch.no_grad():
             for image, true_mask in tqdm(valid_loader, desc=f"Validating E{epoch_idx+1}"):
                 out_mask = self(image)
-                loss, iou = self.calculate_loss_and_metrics(image, true_mask, self.loss_fn, calc_iou)
+                loss, iou = self.calculate_loss_and_metrics(out_mask, true_mask, self.loss_fn, calc_iou)
                 valid_loss += loss
                 valid_iou += iou
         n = len(valid_loader.dataset)
