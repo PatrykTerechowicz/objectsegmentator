@@ -16,10 +16,7 @@ def calc_params(model):
         s += p.numel()
     return s
 
-def calc_iou(out_mask, true_mask):
-    intersection = out_mask * true_mask
-    union = out_mask + true_mask - intersection
-    return torch.sum(intersection)/torch.sum(union)
+
 
 def put_masks(images: Tensor, masks: Tensor):
     B, C, H, W = images.shape

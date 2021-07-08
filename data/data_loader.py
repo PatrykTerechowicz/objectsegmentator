@@ -39,6 +39,13 @@ def weak_augment(image_batch, mask_batch):
 elastic = RandomElasticTransform(p=0.32, sigma=(32, 32))
 rh_flip = RandomHorizontalFlip(p=0.5)
 rv_flip = RandomVerticalFlip(p=0.5)
+
+def just_preprocess(image_batch, mask_batch):
+    image_batch = normalize(image_batch)
+    image_batch = F.interpolate(image_batch, scale_factor=0.3)
+    mask_batch = F.interpolate(mask_batch, scale_factor=0.3)
+    return image_batch, mask_batch
+
 def strong_augment(image_batch, mask_batch):
     image_batch = clr_jitter(image_batch)
     image_batch = blur(image_batch)
